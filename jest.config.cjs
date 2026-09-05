@@ -5,4 +5,8 @@ module.exports = {
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
   clearMocks: true,
+  transform: {},
+  transformIgnorePatterns: [
+    'node_modules/(?!(marked-highlight|highlight.js)/)',
+  ],
 };
