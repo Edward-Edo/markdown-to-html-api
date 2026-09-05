@@ -48,7 +48,7 @@ function render(markdown, options = {}) {
   if (typeof markdown !== 'string') {
     throw new TypeError('markdown debe ser un string');
   }
-  const DOMPurify = require('isomorphic-dompurify');
+  const DOMPurify = require('./purify');
   const dirty = marked.parse(markdown);
   const clean = DOMPurify.sanitize(dirty, {
     USE_PROFILES: { html: true },
