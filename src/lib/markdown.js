@@ -1,36 +1,33 @@
 'use strict';
 
 const { Marked } = require('marked');
-const { markedHighlight } = require('marked-highlight');
 const hljs = require('highlight.js');
-const DOMPurify = require('isomorphic-dompurify');
 
-const HIGHLIGHT_LANGS = [
-  'javascript',
-  'typescript',
-  'python',
-  'php',
-  'sql',
-  'bash',
-  'json',
-  'html',
-  'css',
-  'yaml',
-  'go',
-  'rust',
-  'java',
-  'markdown',
-];
+const marked = new Marked();
 
-const marked = new Marked(
-  markedHighlight({
-    langPrefix: 'hljs language-',
-    highlight(code, lang) {
-      const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
-      return hljs.highlight(code, { language }).value;
+/**
+ * Resaltador compatible con marked v14: firma (code, lang) => string.
+ */
+function highlightCode(code, lang) {
+  const language = lang && hljs.getLanguage(lang) ? lang : 'plaintext';
+  try {
+    return hljs.highlight(code, { language }).value;
+  } catch (_err) {
+    return code;
+  }
+}
+
+marked.use({
+  renderer: {
+    code(token) {
+      const code = typeof token === 'object' ? token.text : token;
+      const lang = typeof token === 'object' ? token.lang : '';
+      const highlighted = highlightCode(code, lang);
+      const langClass = lang ? ` class="hljs language-${lang}"` : ' class="hljs"';
+      return `<pre><code${langClass}>${highlighted}</code></pre>`;
     },
-  }),
-);
+  },
+});
 
 marked.setOptions({
   gfm: true,
@@ -45,24 +42,18 @@ marked.setOptions({
  * @param {object} [options]
  * @param {boolean} [options.highlight=true] - Resaltar bloques de código.
  * @param {string[]} [options.allowedTags] - Tags extra permitidas por DOMPurify.
- * @returns {{ html: string, cached: boolean }}
+ * @returns {{ html: string }}
  */
 function render(markdown, options = {}) {
   if (typeof markdown !== 'string') {
     throw new TypeError('markdown debe ser un string');
   }
-  const { highlight = true, allowedTags = [] } = options;
-
-  if (!highlight) {
-    marked.setOptions({});
-  }
-
+  const DOMPurify = require('isomorphic-dompurify');
   const dirty = marked.parse(markdown);
   const clean = DOMPurify.sanitize(dirty, {
     USE_PROFILES: { html: true },
-    ADD_TAGS: allowedTags,
+    ADD_TAGS: options.allowedTags || [],
   });
-
   return { html: clean };
 }
 
@@ -72,8 +63,7 @@ function wrapWithTheme(html, theme = 'github') {
   if (!THEMES.includes(theme)) {
     throw new Error(`Tema no soportado: ${theme}. Opciones: ${THEMES.join(', ')}`);
   }
-  const css = getThemeCss(theme);
-  return { html, css };
+  return { html, css: getThemeCss(theme) };
 }
 
 function getThemeCss(theme) {
